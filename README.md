@@ -1,10 +1,10 @@
-# Very short description of the package
+# Translate Spreadsheet
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/shishima/translate-spreadsheet.svg?style=flat-square)](https://packagist.org/packages/shishima/translate-spreadsheet)
 [![Total Downloads](https://img.shields.io/packagist/dt/shishima/translate-spreadsheet.svg?style=flat-square)](https://packagist.org/packages/shishima/translate-spreadsheet)
 ![GitHub Actions](https://github.com/shishima/translate-spreadsheet/actions/workflows/main.yml/badge.svg)
 
-This is where your description should go. Try and limit it to a paragraph or two, and maybe throw in a mention of what PSRs you support to avoid any confusion with users and contributors.
+This package serves the purpose of translating the contents within the spreadsheet file. It facilitates the transition from the original language to your preferred language
 
 ## Installation
 
@@ -14,10 +14,67 @@ You can install the package via composer:
 composer require shishima/translate-spreadsheet
 ```
 
+### Publish config
+
+    php artisan vendor:publish --provider="Shishima\TranslateSpreadsheet\TranslateSpreadsheetServiceProvider"
+
+After publishing the configuration file, you can edit the app/config/translate-spreadsheet.php file to customize the settings.
+
 ## Usage
+### translate
+The file can be a path to a file on the system
+```php
+use Shishima\TranslateSpreadsheet\Facades\TranslateSpreadsheet;
+
+$fileInput = public_path('demo.xlsx');
+TranslateSpreadsheet::translate($fileInput);
+```
+Or it could be a file retrieved from the `request` when using the `POST` method in a form submit
+with `<input type="file">`.
 
 ```php
-// Usage description here
+TranslateSpreadsheet::translate($request->file('file'));
+```
+### setTransTarget
+To set the desired translation language target
+
+```php
+TranslateSpreadsheet::setTransTarget('en')->translate($file);
+```
+
+### setTransSource
+To set the desired translation language source
+
+```php
+TranslateSpreadsheet::setTransSource('en')->translate($file);
+```
+__IMPORTANT!__ Pass in `null` if you want to use language detection
+
+
+### setShouldRemoveSheet
+Clear the current sheets after translation is complete. The parameter passed to the method is `true/false`.
+
+```php
+TranslateSpreadsheet::setShouldRemoveSheet(true)->translate($file);
+```
+
+### setOutputDir
+Directory to store files after translation
+
+```php
+TranslateSpreadsheet::setOutputDir('translate/')->translate($file);
+```
+__IMPORTANT!__ The file will be stored in the `public` directory, not in the `storage` directory.
+
+### setCloneSheetPosition
+Position of the cloned sheets
+
+The parameter passed in is enum `ClonePosition`. You can refer to it in the file Enumerations/ClonePosition.php for more detail.
+
+```php
+use Shishima\TranslateSpreadsheet\Enumerations\ClonePosition;
+
+TranslateSpreadsheet::setCloneSheetPosition(ClonePosition::AppendLastSheet)->translate($file);
 ```
 
 ### Testing
@@ -50,3 +107,7 @@ The MIT License (MIT). Please see [License File](LICENSE.md) for more informatio
 ## Laravel Package Boilerplate
 
 This package was generated using the [Laravel Package Boilerplate](https://laravelpackageboilerplate.com).
+
+## Special Thanks
+- [stichoza/google-translate-php](https://github.com/Stichoza/google-translate-php)
+- [phpoffice/phpspreadsheet](https://github.com/PHPOffice/PhpSpreadsheet)

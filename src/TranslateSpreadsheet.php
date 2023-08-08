@@ -12,6 +12,8 @@ use Stichoza\GoogleTranslate\Exceptions\LargeTextException;
 use Stichoza\GoogleTranslate\Exceptions\RateLimitException;
 use Stichoza\GoogleTranslate\Exceptions\TranslationRequestException;
 use Stichoza\GoogleTranslate\GoogleTranslate;
+use Shishima\TranslateSpreadsheet\Enumerations\ClonePosition;
+use Illuminate\Support\Facades\File;
 
 class TranslateSpreadsheet
 {
@@ -20,6 +22,10 @@ class TranslateSpreadsheet
     public string|null $transSource = null;
 
     public bool|null $shouldRemoveSheet;
+
+    public string|null $outputDir;
+
+    public ClonePosition|null $clonePosition;
 
     /**
      * @throws LargeTextException
@@ -41,7 +47,7 @@ class TranslateSpreadsheet
         foreach ($sheetNames as $index => $sheetName)
         {
             $clonedWorksheet = clone $spreadsheet->getSheetByName($sheetName);
-            $clonedWorksheet->setTitle($sheetName.'_'.Str::upper($this->getTransTarget()));
+            $clonedWorksheet->setTitle($this->getTitle($sheetName));
             $highestRow         = $clonedWorksheet->getHighestRow(); // e.g. 10
             $highestColumn      = $clonedWorksheet->getHighestColumn(); // e.g 'F'
             $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn); // e.g. 5
@@ -59,13 +65,15 @@ class TranslateSpreadsheet
                     }
                 }
             }
-            $spreadsheet->addSheet($clonedWorksheet, $index * 2 + 1);
+            $spreadsheet->addSheet($clonedWorksheet, $this->getSheetCloneIndex($index));
         }
 
-        if ($this->getShouldRemoveSheet())
+        if ($this->shouldRemoveSheetAfterTranslate())
         {
-            $this->removeOldSheetAfterTranslate(sheetList: $sheetNames, spreadsheet: $spreadsheet, type: 'sheet_name');
+            $this->removeOldSheetAfterTranslate(sheetNames: $sheetNames, spreadsheet: $spreadsheet);
         }
+
+        $this->makeDirectory();
 
         $output = $this->setOutput($file);
         $writer = new XlsxWrite($spreadsheet);
@@ -111,9 +119,23 @@ class TranslateSpreadsheet
 
     public function setOutput($file): string
     {
-        $fileName = Str::of(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))->append('_')->append('translated')->append('.')->append($file->getClientOriginalExtension())->snake();
+        $fileName = Str::of(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                       ->append('_')
+                       ->append('translated')
+                       ->append('.')
+                       ->append($file->getClientOriginalExtension())
+                       ->snake();
+        return public_path($this->getOutputDir().$fileName);
+    }
 
-        return 'translated/'.$fileName;
+    public function makeDirectory(): void
+    {
+        $path = public_path($this->getOutputDir());
+
+        if ( ! File::isDirectory($path))
+        {
+            File::makeDirectory($path, 0777, true, true);
+        }
     }
 
     public function setTransTarget($target): static
@@ -124,18 +146,7 @@ class TranslateSpreadsheet
 
     public function getTransTarget(): string
     {
-        return $this->transTarget ?: config('translate-spreadsheet.target');
-    }
-
-    public function setShouldRemoveSheet($action): static
-    {
-        $this->shouldRemoveSheet = $action;
-        return $this;
-    }
-
-    public function getShouldRemoveSheet(): bool
-    {
-        return $this->shouldRemoveSheet ?: config('translate-spreadsheet.remove_sheet');
+        return $this->transTarget ?? config('translate-spreadsheet.target');
     }
 
     public function setTransSource($target): static
@@ -144,21 +155,67 @@ class TranslateSpreadsheet
         return $this;
     }
 
-    public function getTransSource(): string
+    public function getTransSource(): string|null
     {
-        return $this->transSource ?: config('translate-spreadsheet.source');
+        return $this->transSource ?? config('translate-spreadsheet.source');
     }
 
-    public function removeOldSheetAfterTranslate($sheetList, &$spreadsheet, $type = 'index'): void
+    public function setOutputDir($outputDir): static
     {
-        foreach ($sheetList as $sheetIndex)
+        $this->outputDir = $outputDir;
+        return $this;
+    }
+
+    public function getOutputDir(): string|null
+    {
+        return $this->outputDir ?? config('translate-spreadsheet.output_dir');
+    }
+
+    public function setShouldRemoveSheet($action): static
+    {
+        $this->shouldRemoveSheet = $action;
+        return $this;
+    }
+
+    public function shouldRemoveSheetAfterTranslate(): bool
+    {
+        return $this->shouldRemoveSheet ?? config('translate-spreadsheet.remove_sheet');
+    }
+
+    public function removeOldSheetAfterTranslate($sheetNames, &$spreadsheet): void
+    {
+        foreach ($sheetNames as $sheetName)
         {
-            if ($type == 'sheet_name')
-            {
-                $sheetIndex = $spreadsheet->getIndex($spreadsheet->getSheetByName($sheetIndex));
-            }
+            $sheetIndex = $spreadsheet->getIndex($spreadsheet->getSheetByName($sheetName));
 
             $spreadsheet->removeSheetByIndex($sheetIndex);
         }
+    }
+
+    public function setCloneSheetPosition(ClonePosition $clonePosition): static
+    {
+        $this->clonePosition = $clonePosition;
+        return $this;
+    }
+
+    public function getCloneSheetPosition(): ClonePosition
+    {
+        return $this->clonePosition ?? config('translate-spreadsheet.clone_sheet_position');
+    }
+
+    public function getSheetCloneIndex($index): int|null
+    {
+        return match ($this->getCloneSheetPosition())
+        {
+            ClonePosition::PrependCurrentSheet => $index * 2,
+            ClonePosition::AppendLastSheet => null,
+            ClonePosition::PrependFirstSheet => $index,
+            default => $index * 2 + 1,
+        };
+    }
+
+    public function getTitle($sheetName): string
+    {
+        return $sheetName.'_'.Str::upper($this->getTransTarget());
     }
 }
