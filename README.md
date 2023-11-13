@@ -11,7 +11,7 @@ This package serves the purpose of translating the contents within the spreadshe
 You can install the package via composer:
 
 ```bash
-composer require shishima/translate-spreadsheet
+composer require shishima/laravel-translate-spreadsheet
 ```
 
 ### Publish config
