@@ -121,7 +121,7 @@ class TranslateSpreadsheet
     {
         $fileName = Str::of(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
                        ->append('_')
-                       ->append('translated')
+                       ->append($this->getFileNameSuffix())
                        ->append('.')
                        ->append($file->getClientOriginalExtension())
                        ->snake();
@@ -217,5 +217,15 @@ class TranslateSpreadsheet
     public function getTitle($sheetName): string
     {
         return $sheetName.'_'.Str::upper($this->getTransTarget());
+    }
+
+    public function getFileNameSuffix(): string
+    {
+        if (empty(config('translate-spreadsheet.suffix')))
+        {
+            return $this->getTransTarget();
+        }
+
+        return config('translate-spreadsheet.suffix');
     }
 }

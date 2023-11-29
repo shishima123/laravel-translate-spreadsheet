@@ -44,7 +44,7 @@ return [
     | ClonePosition::AppendLastSheet;
     |
     */
-    'clone_sheet_position' => ClonePosition::AppendLastSheet,
+    'clone_sheet_position' => ClonePosition::AppendCurrentSheet,
 
     /*
     |--------------------------------------------------------------------------
@@ -54,5 +54,16 @@ return [
     | Configure the directory where the file will be saved after translating
     |
     */
-    'output_dir' => 'translated/'
+    'output_dir' => 'translated/',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Directory store files
+    |--------------------------------------------------------------------------
+    |
+    | Configure the suffix in the output file name
+    | If set to null, the suffix will take the value of the target of the translation. E.g: _en
+    |
+    */
+    'suffix' => null
 ];
