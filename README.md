@@ -1,8 +1,8 @@
 # Translate Spreadsheet
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/shishima/translate-spreadsheet.svg?style=flat-square)](https://packagist.org/packages/shishima/translate-spreadsheet)
-[![Total Downloads](https://img.shields.io/packagist/dt/shishima/translate-spreadsheet.svg?style=flat-square)](https://packagist.org/packages/shishima/translate-spreadsheet)
-![GitHub Actions](https://github.com/shishima/translate-spreadsheet/actions/workflows/main.yml/badge.svg)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/shishima/laravel-translate-spreadsheet.svg?style=flat-square)](https://packagist.org/packages/shishima/translate-spreadsheet)
+[![Total Downloads](https://img.shields.io/packagist/dt/shishima/laravel-translate-spreadsheet.svg?style=flat-square)](https://packagist.org/packages/shishima/translate-spreadsheet)
+![GitHub Actions](https://github.com/shishima/laravel-translate-spreadsheet/actions/workflows/main.yml/badge.svg)
 
 This package serves the purpose of translating the contents within the spreadsheet file. It facilitates the transition from the original language to your preferred language
 

@@ -8,9 +8,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | Setting the language target of Google Translate
+    | If you want to translate into multiple languages simultaneously, set multiple values in the array.
     |
     */
-    'target' => 'en',
+    'target' => ['en'],
 
     /*
     |--------------------------------------------------------------------------

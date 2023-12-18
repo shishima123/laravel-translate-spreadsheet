@@ -3,6 +3,7 @@
 namespace Shishima\TranslateSpreadsheet;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Exception;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\File;
 
 class TranslateSpreadsheet
 {
-    public string|null $transTarget = null;
+    public array|null $transTarget = null;
 
     public string|null $transSource = null;
 
@@ -46,26 +47,11 @@ class TranslateSpreadsheet
 
         foreach ($sheetNames as $index => $sheetName)
         {
-            $clonedWorksheet = clone $spreadsheet->getSheetByName($sheetName);
-            $clonedWorksheet->setTitle($this->getTitle($sheetName));
-            $highestRow         = $clonedWorksheet->getHighestRow(); // e.g. 10
-            $highestColumn      = $clonedWorksheet->getHighestColumn(); // e.g 'F'
-            $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn); // e.g. 5
-
-            for ($row = 1; $row <= $highestRow; ++$row)
+            foreach (array_reverse($this->getTransTarget()) as $transTarget)
             {
-                for ($col = 1; $col <= $highestColumnIndex; ++$col)
-                {
-                    $cellCoordinate = Coordinate::stringFromColumnIndex($col).$row;
-                    $value          = $clonedWorksheet->getCell($cellCoordinate)->getValue();
-                    if ($value)
-                    {
-                        $textTranslated = GoogleTranslate::trans(string: $value, target: $this->getTransTarget(), source: $this->getTransSource());
-                        $clonedWorksheet->setCellValue($cellCoordinate, $textTranslated);
-                    }
-                }
+                $clonedWorksheet = $this->translateSheet($spreadsheet, $sheetName, $transTarget);
+                $spreadsheet->addSheet($clonedWorksheet, $this->getSheetCloneIndex($index));
             }
-            $spreadsheet->addSheet($clonedWorksheet, $this->getSheetCloneIndex($index));
         }
 
         if ($this->shouldRemoveSheetAfterTranslate())
@@ -80,6 +66,30 @@ class TranslateSpreadsheet
         $writer->save($output);
 
         return $output;
+    }
+
+    public function translateSheet($spreadsheet, string $sheetName, string $transTarget)
+    {
+        $clonedWorksheet = clone $spreadsheet->getSheetByName($sheetName);
+        $clonedWorksheet->setTitle($this->getTitle($sheetName, $transTarget));
+        $highestRow         = $clonedWorksheet->getHighestRow(); // e.g. 10
+        $highestColumn      = $clonedWorksheet->getHighestColumn(); // e.g 'F'
+        $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn); // e.g. 5
+
+        for ($row = 1; $row <= $highestRow; ++$row)
+        {
+            for ($col = 1; $col <= $highestColumnIndex; ++$col)
+            {
+                $cellCoordinate = Coordinate::stringFromColumnIndex($col).$row;
+                $value          = $clonedWorksheet->getCell($cellCoordinate)->getValue();
+                if ($value)
+                {
+                    $textTranslated = GoogleTranslate::trans(string: $value, target: $transTarget, source: $this->getTransSource());
+                    $clonedWorksheet->setCellValue($cellCoordinate, $textTranslated);
+                }
+            }
+        }
+        return $clonedWorksheet;
     }
 
     /**
@@ -117,7 +127,7 @@ class TranslateSpreadsheet
         return $file;
     }
 
-    public function setOutput($file): string
+    public function setOutput(UploadedFile $file): string
     {
         $fileName = Str::of(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
                        ->append('_')
@@ -138,13 +148,21 @@ class TranslateSpreadsheet
         }
     }
 
-    public function setTransTarget($target): static
+    /**
+     * @throws \Exception
+     */
+    public function setTransTarget(string|array $target): static
     {
-        $this->transTarget = $target;
+        if (empty($target))
+        {
+            throw new \Exception('Target is empty');
+        }
+
+        $this->transTarget = Arr::wrap($target);
         return $this;
     }
 
-    public function getTransTarget(): string
+    public function getTransTarget(): array
     {
         return $this->transTarget ?? config('translate-spreadsheet.target');
     }
@@ -171,7 +189,7 @@ class TranslateSpreadsheet
         return $this->outputDir ?? config('translate-spreadsheet.output_dir');
     }
 
-    public function setShouldRemoveSheet($action): static
+    public function setShouldRemoveSheet(bool $action): static
     {
         $this->shouldRemoveSheet = $action;
         return $this;
@@ -207,25 +225,25 @@ class TranslateSpreadsheet
     {
         return match ($this->getCloneSheetPosition())
         {
-            ClonePosition::PrependCurrentSheet => $index * 2,
+            ClonePosition::PrependCurrentSheet => $index * (count($this->getTransTarget()) + 1),
             ClonePosition::AppendLastSheet => null,
             ClonePosition::PrependFirstSheet => $index,
-            default => $index * 2 + 1,
+            default => $index * (count($this->getTransTarget()) + 1) + 1,
         };
     }
 
-    public function getTitle($sheetName): string
+    public function getTitle($sheetName, string $transTarget): string
     {
-        return $sheetName.'_'.Str::upper($this->getTransTarget());
+        return $sheetName.'_'.Str::upper($transTarget);
     }
 
     public function getFileNameSuffix(): string
     {
         if (empty(config('translate-spreadsheet.suffix')))
         {
-            return $this->getTransTarget();
+            return implode('_', $this->getTransTarget());
         }
 
-        return config('translate-spreadsheet.suffix');
+        return implode('_', config('translate-spreadsheet.suffix'));
     }
 }
