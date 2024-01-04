@@ -9,6 +9,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWrite;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Stichoza\GoogleTranslate\Exceptions\LargeTextException;
 use Stichoza\GoogleTranslate\Exceptions\RateLimitException;
 use Stichoza\GoogleTranslate\Exceptions\TranslationRequestException;
@@ -18,15 +19,17 @@ use Illuminate\Support\Facades\File;
 
 class TranslateSpreadsheet
 {
-    public array|null $transTarget = null;
+    private array|null $transTarget = null;
 
-    public string|null $transSource = null;
+    private string|null $transSource = null;
 
-    public bool|null $shouldRemoveSheet;
+    private bool|null $shouldRemoveSheet;
 
-    public string|null $outputDir;
+    private string|null $outputDir;
 
-    public ClonePosition|null $clonePosition;
+    private ClonePosition|null $clonePosition;
+
+    private bool|null $isHighlightSheet;
 
     /**
      * @throws LargeTextException
@@ -47,17 +50,17 @@ class TranslateSpreadsheet
 
         foreach ($sheetNames as $index => $sheetName)
         {
+            $currentSheetInstance = $spreadsheet->getSheetByName($sheetName);
+            $currentSheetInstance = $this->handleTabColor($currentSheetInstance, $index);
+
             foreach (array_reverse($this->getTransTarget()) as $transTarget)
             {
-                $clonedWorksheet = $this->translateSheet($spreadsheet, $sheetName, $transTarget);
+                $clonedWorksheet = $this->translateSheet($currentSheetInstance, $transTarget);
                 $spreadsheet->addSheet($clonedWorksheet, $this->getSheetCloneIndex($index));
             }
         }
 
-        if ($this->shouldRemoveSheetAfterTranslate())
-        {
-            $this->removeOldSheetAfterTranslate(sheetNames: $sheetNames, spreadsheet: $spreadsheet);
-        }
+        $this->handleRemoveOldSheetAfterTranslate(sheetNames: $sheetNames, spreadsheet: $spreadsheet);
 
         $this->makeDirectory();
 
@@ -68,10 +71,10 @@ class TranslateSpreadsheet
         return $output;
     }
 
-    public function translateSheet($spreadsheet, string $sheetName, string $transTarget)
+    public function translateSheet($currentSheetInstance, string $transTarget)
     {
-        $clonedWorksheet = clone $spreadsheet->getSheetByName($sheetName);
-        $clonedWorksheet->setTitle($this->getTitle($sheetName, $transTarget));
+        $clonedWorksheet = clone $currentSheetInstance;
+        $clonedWorksheet->setTitle($this->getTitle($currentSheetInstance->getTitle(), $transTarget));
         $highestRow         = $clonedWorksheet->getHighestRow(); // e.g. 10
         $highestColumn      = $clonedWorksheet->getHighestColumn(); // e.g 'F'
         $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn); // e.g. 5
@@ -199,13 +202,16 @@ class TranslateSpreadsheet
         return $this->shouldRemoveSheet ?? config('translate-spreadsheet.remove_sheet');
     }
 
-    public function removeOldSheetAfterTranslate($sheetNames, &$spreadsheet): void
+    public function handleRemoveOldSheetAfterTranslate($sheetNames, &$spreadsheet): void
     {
-        foreach ($sheetNames as $sheetName)
+        if ($this->shouldRemoveSheetAfterTranslate())
         {
-            $sheetIndex = $spreadsheet->getIndex($spreadsheet->getSheetByName($sheetName));
+            foreach ($sheetNames as $sheetName)
+            {
+                $sheetIndex = $spreadsheet->getIndex($spreadsheet->getSheetByName($sheetName));
 
-            $spreadsheet->removeSheetByIndex($sheetIndex);
+                $spreadsheet->removeSheetByIndex($sheetIndex);
+            }
         }
     }
 
@@ -244,5 +250,46 @@ class TranslateSpreadsheet
         }
 
         return implode('_', config('translate-spreadsheet.suffix'));
+    }
+
+    public function getIsHighlightSheet(): bool
+    {
+        return $this->isHighlightSheet ?? config('translate-spreadsheet.highlight_sheet');
+    }
+
+    public function highlightSheet(): static
+    {
+        $this->isHighlightSheet = true;
+        return $this;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function handleTabColor(Worksheet $currentSheetInstance, int $index): Worksheet
+    {
+        if ($this->getIsHighlightSheet())
+        {
+            $color = $this->getTabColor($index);
+            $currentSheetInstance->getTabColor()->setRGB($color);
+        }
+        return $currentSheetInstance;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function getTabColor(int $index): string
+    {
+        $palettes = config('translate-spreadsheet.highlight_palette_colors');
+
+        if (empty($palettes))
+        {
+            throw new \Exception('No color found!');
+        }
+
+        $newIndex = $index % count($palettes);
+
+        return $palettes[$newIndex];
     }
 }

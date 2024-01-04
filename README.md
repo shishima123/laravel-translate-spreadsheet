@@ -76,6 +76,14 @@ use Shishima\TranslateSpreadsheet\Enumerations\ClonePosition;
 TranslateSpreadsheet::setCloneSheetPosition(ClonePosition::AppendLastSheet)->translate($file);
 ```
 
+### highlightSheet
+Sheets will be highlighted after export
+
+```php
+
+TranslateSpreadsheet::highlightSheet(true)->translate($file);
+```
+
 ### Testing
 
 ```bash
