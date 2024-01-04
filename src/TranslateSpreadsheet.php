@@ -133,8 +133,7 @@ class TranslateSpreadsheet
                        ->append('_')
                        ->append($this->getFileNameSuffix())
                        ->append('.')
-                       ->append($file->getClientOriginalExtension())
-                       ->snake();
+                       ->append($file->getClientOriginalExtension());
         return public_path($this->getOutputDir().$fileName);
     }
 
