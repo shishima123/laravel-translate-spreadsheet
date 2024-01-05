@@ -84,6 +84,14 @@ Sheets will be highlighted after export
 TranslateSpreadsheet::highlightSheet(true)->translate($file);
 ```
 
+### translateSheetName
+Sheets Name will be translated after export
+
+```php
+
+TranslateSpreadsheet::translateSheetName(true)->translate($file);
+```
+
 ### Testing
 
 ```bash

@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWrite;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Stichoza\GoogleTranslate\Exceptions\LargeTextException;
@@ -30,6 +31,8 @@ class TranslateSpreadsheet
     private ClonePosition|null $clonePosition;
 
     private bool|null $isHighlightSheet;
+
+    private bool|null $isTranslateSheetName;
 
     /**
      * @throws LargeTextException
@@ -169,9 +172,9 @@ class TranslateSpreadsheet
         return $this->transTarget ?? config('translate-spreadsheet.target');
     }
 
-    public function setTransSource($target): static
+    public function setTransSource(string|null $source): static
     {
-        $this->transTarget = $target;
+        $this->transSource = $source;
         return $this;
     }
 
@@ -180,7 +183,7 @@ class TranslateSpreadsheet
         return $this->transSource ?? config('translate-spreadsheet.source');
     }
 
-    public function setOutputDir($outputDir): static
+    public function setOutputDir(string $outputDir): static
     {
         $this->outputDir = $outputDir;
         return $this;
@@ -202,7 +205,10 @@ class TranslateSpreadsheet
         return $this->shouldRemoveSheet ?? config('translate-spreadsheet.remove_sheet');
     }
 
-    public function handleRemoveOldSheetAfterTranslate($sheetNames, &$spreadsheet): void
+    /**
+     * @throws Exception
+     */
+    public function handleRemoveOldSheetAfterTranslate(array $sheetNames, Spreadsheet &$spreadsheet): void
     {
         if ($this->shouldRemoveSheetAfterTranslate())
         {
@@ -226,7 +232,7 @@ class TranslateSpreadsheet
         return $this->clonePosition ?? config('translate-spreadsheet.clone_sheet_position');
     }
 
-    public function getSheetCloneIndex($index): int|null
+    public function getSheetCloneIndex(int $index): int|null
     {
         return match ($this->getCloneSheetPosition())
         {
@@ -237,8 +243,12 @@ class TranslateSpreadsheet
         };
     }
 
-    public function getTitle($sheetName, string $transTarget): string
+    public function getTitle(string $sheetName, string $transTarget): string
     {
+        if ($this->getIsTranslateSheetName())
+        {
+            $sheetName = GoogleTranslate::trans(string: $sheetName, target: $transTarget);
+        }
         return $sheetName.'_'.Str::upper($transTarget);
     }
 
@@ -257,9 +267,9 @@ class TranslateSpreadsheet
         return $this->isHighlightSheet ?? config('translate-spreadsheet.highlight_sheet');
     }
 
-    public function highlightSheet(): static
+    public function highlightSheet(bool $action = true): static
     {
-        $this->isHighlightSheet = true;
+        $this->isHighlightSheet = $action;
         return $this;
     }
 
@@ -291,5 +301,16 @@ class TranslateSpreadsheet
         $newIndex = $index % count($palettes);
 
         return $palettes[$newIndex];
+    }
+
+    public function getIsTranslateSheetName(): bool
+    {
+        return $this->isTranslateSheetName ?? config('translate-spreadsheet.translate_sheet_name');
+    }
+
+    public function translateSheetName(bool $action = true): static
+    {
+        $this->isTranslateSheetName = $action;
+        return $this;
     }
 }

@@ -98,5 +98,15 @@ return [
         '8EECF5',
         '98F5E1',
         'B9FBC0',
-    ]
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Translate Sheet Name
+    |--------------------------------------------------------------------------
+    |
+    | The configuration is used for translating sheet names.
+    |
+    */
+    'translate_sheet_name' => false,
 ];
