@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\File;
 
 class TranslateSpreadsheet
 {
+    const MAX_SHEET_NAME_LENGTH = 31;
     private array|null $transTarget = null;
 
     private string|null $transSource = null;
@@ -249,6 +250,7 @@ class TranslateSpreadsheet
         {
             $sheetName = GoogleTranslate::trans(string: $sheetName, target: $transTarget);
         }
+        $sheetName = Str::substr($sheetName, 0, self::MAX_SHEET_NAME_LENGTH - strlen($transTarget) - 1);
         return $sheetName.'_'.Str::upper($transTarget);
     }
 

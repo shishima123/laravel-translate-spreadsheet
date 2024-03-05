@@ -106,6 +106,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | The configuration is used for translating sheet names.
+    | The length of the sheet name is 31. If the length exceeds the limit, it will be cut off.
     |
     */
     'translate_sheet_name' => false,
