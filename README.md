@@ -92,6 +92,39 @@ Sheets Name will be translated after export
 TranslateSpreadsheet::translateSheetName(true)->translate($file);
 ```
 
+### enableDebug
+For logging translated sentences into a log file for debugging purposes
+
+```php
+
+TranslateSpreadsheet::enableDebug()->translate($file);
+```
+
+To disable this feature, pass `false` as the argument.
+
+## Translate Engine
+The package supports two translation engines: Google Translate and Gemini
+
+It can be installed through the `translate_engine` setting in the config file
+
+Alternatively, you can use the setTranslateEngine function.
+The parameter to be passed is an Enum TranslateEngine, which can be either `TranslateEngine::Gemini` or `TranslateEngine::Google`
+
+```php
+
+use Shishima\TranslateSpreadsheet\Enumerations\TranslateEngine;
+
+TranslateSpreadsheet::setTranslateEngine(TranslateEngine::Gemini)->translate($file);
+```
+
+### Google Translate
+No need for setting
+
+### Gemini
+This functionality has been developed from [google-gemini-php/laravel](https://github.com/google-gemini-php/laravel) library
+
+Therefore, please install this package before use
+
 ### Testing
 
 ```bash

@@ -1,5 +1,6 @@
 <?php
 use Shishima\TranslateSpreadsheet\Enumerations\ClonePosition;
+use Shishima\TranslateSpreadsheet\Enumerations\TranslateEngine;
 
 return [
     /*
@@ -110,4 +111,53 @@ return [
     |
     */
     'translate_sheet_name' => false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Translate Engine
+    |--------------------------------------------------------------------------
+    | There are 2 engines are supported
+    | TranslateEngine::Gemini;
+    | TranslateEngine::Google;
+    |
+    */
+    'translate_engine' => TranslateEngine::Gemini,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Translate Engine
+    |--------------------------------------------------------------------------
+    | Translate abbreviated language from Google Translate into its full language name.
+    | Utilized for generating prompts in AI models.
+    |
+    */
+    'mapping_abbreviation_language' => [
+        'en' => 'english',
+        'vi' => 'vietnamese',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Translate Engine
+    |--------------------------------------------------------------------------
+    | Log the translated text to a log file.
+    |
+    */
+    'debug' => false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Config for Gemini AI
+    |--------------------------------------------------------------------------
+    |
+    */
+    'gemini' => [
+        //The wrap character definition will be removed from gemini's answer
+        // Ex: "hello" -> hello
+        'unwrap_character' => ['"', "'", "’", "‘"],
+
+        // Rate limit for each model
+        // https://docs.gemini.com/rest-api/#rate-limits
+        'rate_limit' => 120
+    ]
 ];

@@ -5,17 +5,14 @@ namespace Shishima\TranslateSpreadsheet;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWrite;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Stichoza\GoogleTranslate\Exceptions\LargeTextException;
-use Stichoza\GoogleTranslate\Exceptions\RateLimitException;
-use Stichoza\GoogleTranslate\Exceptions\TranslationRequestException;
-use Stichoza\GoogleTranslate\GoogleTranslate;
+use Shishima\TranslateSpreadsheet\Strategy\Translate\TranslateContext;
 use Shishima\TranslateSpreadsheet\Enumerations\ClonePosition;
+use Shishima\TranslateSpreadsheet\Enumerations\TranslateEngine;
 use Illuminate\Support\Facades\File;
 
 class TranslateSpreadsheet
@@ -35,11 +32,12 @@ class TranslateSpreadsheet
 
     private bool|null $isTranslateSheetName;
 
+    private TranslateEngine|null $translateEngine;
+
+    private bool|null $isDebug;
+
     /**
-     * @throws LargeTextException
      * @throws Exception
-     * @throws RateLimitException
-     * @throws TranslationRequestException
      * @throws \PhpOffice\PhpSpreadsheet\Writer\Exception
      * @throws \PhpOffice\PhpSpreadsheet\Reader\Exception
      * @throws \Exception
@@ -77,26 +75,8 @@ class TranslateSpreadsheet
 
     public function translateSheet($currentSheetInstance, string $transTarget)
     {
-        $clonedWorksheet = clone $currentSheetInstance;
-        $clonedWorksheet->setTitle($this->getTitle($currentSheetInstance->getTitle(), $transTarget));
-        $highestRow         = $clonedWorksheet->getHighestRow(); // e.g. 10
-        $highestColumn      = $clonedWorksheet->getHighestColumn(); // e.g 'F'
-        $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn); // e.g. 5
-
-        for ($row = 1; $row <= $highestRow; ++$row)
-        {
-            for ($col = 1; $col <= $highestColumnIndex; ++$col)
-            {
-                $cellCoordinate = Coordinate::stringFromColumnIndex($col).$row;
-                $value          = $clonedWorksheet->getCell($cellCoordinate)->getValue();
-                if ($value)
-                {
-                    $textTranslated = GoogleTranslate::trans(string: $value, target: $transTarget, source: $this->getTransSource());
-                    $clonedWorksheet->setCellValue($cellCoordinate, $textTranslated);
-                }
-            }
-        }
-        return $clonedWorksheet;
+        $translateContext = new TranslateContext($this->getTranslateEngine());
+        return $translateContext->doTranslate($currentSheetInstance, $this, $transTarget);
     }
 
     /**
@@ -136,11 +116,7 @@ class TranslateSpreadsheet
 
     public function setOutput(UploadedFile $file): string
     {
-        $fileName = Str::of(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
-                       ->append('_')
-                       ->append($this->getFileNameSuffix())
-                       ->append('.')
-                       ->append($file->getClientOriginalExtension());
+        $fileName = Str::of(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))->append('_')->append($this->getFileNameSuffix())->append('.')->append($file->getClientOriginalExtension());
         return public_path($this->getOutputDir().$fileName);
     }
 
@@ -244,11 +220,11 @@ class TranslateSpreadsheet
         };
     }
 
-    public function getTitle(string $sheetName, string $transTarget): string
+    public function getTitle(string $sheetName, string $transTarget, $translateEngine): string
     {
         if ($this->getIsTranslateSheetName())
         {
-            $sheetName = GoogleTranslate::trans(string: $sheetName, target: $transTarget);
+            $sheetName = $translateEngine->translateText($sheetName, $transTarget);
         }
         $sheetName = Str::substr($sheetName, 0, self::MAX_SHEET_NAME_LENGTH - strlen($transTarget) - 1);
         return $sheetName.'_'.Str::upper($transTarget);
@@ -314,5 +290,37 @@ class TranslateSpreadsheet
     {
         $this->isTranslateSheetName = $action;
         return $this;
+    }
+
+    public function setTranslateEngine($translateEngine): static
+    {
+        $this->translateEngine = $translateEngine;
+        return $this;
+    }
+
+    public function getTranslateEngine(): TranslateEngine
+    {
+        return $this->translateEngine ?? config('translate-spreadsheet.translate_engine');
+    }
+
+    public function isNonEmptyStr($value): bool
+    {
+        return Str::of($value)->isNotEmpty();
+    }
+
+    public function isNonNumeric($value): bool
+    {
+        return ! is_numeric($value);
+    }
+
+    public function enableDebug(bool $action = true): static
+    {
+        $this->isDebug = $action;
+        return $this;
+    }
+
+    public function isEnableDebug(): bool
+    {
+        return $this->isDebug ?? config('translate-spreadsheet.debug');
     }
 }
